@@ -1,7 +1,4 @@
 const http = require('node:http');
-const EventEmitter = require('node:events')
-
-const myEmitter = new EventEmitter();
 
 const hostname = '127.0.0.1';
 let port = 80;
@@ -27,17 +24,17 @@ class PutQueue {
     }
     addRequestToQueue(path, request) {
         if (!(path in this._queue)) {
-            console.log(`no ${path} in queue`);
+            // console.log(`no ${path} in queue`);
             this._queue[path] = [request];
-            console.log(this._queue);
+            // console.log(this._queue);
         } else {
             this._queue[path].push(request);
-            console.log(this._queue);
+            // console.log(this._queue);
         }
     }
     getFirstFromQueue(path) {
         const result = this._queue[path].shift();
-        console.log(`get ${result} from ${path} in queue`);
+        // console.log(`get ${result} from ${path} in queue`);
         if (this._queue[path].length == 0) {
             delete this._queue[path];
         }
@@ -54,7 +51,7 @@ class GetQueue extends PutQueue {
             case "timeout":
                 const rem = this._queue[path].indexOf(request);
                 this._queue[path].splice(rem, 1);
-                console.log(`deleted ${request} from ${path} Queue`);
+                // console.log(`deleted ${request} from ${path} Queue`);
                 if (this._queue[path].length == 0) {
                     delete this._queue[path];
                 }
@@ -71,9 +68,8 @@ class GetQueue extends PutQueue {
 
 const getQueue = new GetQueue();
 const putQueue = new PutQueue();
-myEmitter.setMaxListeners(Infinity)
 
-myEmitter.on('GET', (req, res) => {
+function ProcessGet(req, res) {
     const url = new URL(req.url, `http://${hostname}/${req.url}`);
     const keyTimeout = url.searchParams.get("timeout");
     const path = url.pathname;
@@ -85,7 +81,7 @@ myEmitter.on('GET', (req, res) => {
         // console.log('Bar', counter);
         if (uniqId == getQueue.getFirstFromQueue(path)) {
             if (putQueue.pathInQueue(path)) {
-                console.log(`found ${path} in putQueue`);
+                // console.log(`found ${path} in putQueue`);
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/plain');
                 res.end(`${putQueue.getFirstFromQueue(path)}`);
@@ -96,18 +92,14 @@ myEmitter.on('GET', (req, res) => {
         counter++;
         if (counter >= keyTimeout * 10) {
             getQueue.remRequestFromQueue(path, uniqId, "timeout");
-            // console.log(getQueue);
             res.statusCode = 404;
             res.end();
             clearInterval(interval);
         }
     }, 100);
-    // res.statusCode = 200;
-    // res.setHeader('Content-Type', 'text/plain');
-    // res.end(`GET ${req.url}`);
-});
+}
 
-myEmitter.on('PUT', (req, res) => {
+function ProcessPut(req, res) {
     const url = new URL(req.url, `http://${hostname}/${req.url}`);
     const keyV = url.searchParams.get("v");
     const path = url.pathname;
@@ -122,21 +114,19 @@ myEmitter.on('PUT', (req, res) => {
                 return
             } else {
                 res.statusCode = 200;
-                // testArg++
                 putQueue.addRequestToQueue(path, keyV)
                 res.end();
                 return
             }
-})
+}
 
 const server = http.createServer((req, res) => {
-    // console.log(req.method); 
     switch (req.method) {
         case "GET": 
-            myEmitter.emit('GET', req, res);
+            ProcessGet(req, res);
             break;
         case "PUT":
-            myEmitter.emit('PUT', req, res);
+            ProcessPut(req, res);
             break;
         default:
             res.statusCode = 400;
@@ -147,5 +137,3 @@ const server = http.createServer((req, res) => {
 server.listen(port, hostname, () => {
   console.log(`Server running at http://${hostname}:${port}/`);
 });
-console.log(myEmitter.eventNames());
-console.log(myEmitter.getMaxListeners());
