@@ -3,6 +3,7 @@ const http = require('node:http');
 const hostname = '127.0.0.1';
 let port = 80;
 const inputArgs = process.argv;
+let getCounter = 0;
 
 inputArgs.forEach((val, index) => {
     if (val == "-p" && typeof(inputArgs[index+1]) != "undefined") {
@@ -53,28 +54,38 @@ class GetQueue extends PutQueue {
             case "timeout":
                 const rem = buf.indexOf(request);
                 buf.splice(rem, 1);
+                if (buf.length == 0) {
+                    this._queue.delete(path);
+                } else {
+                    this._queue.set(path, buf)
+                }
                 break;
             default:
                 buf.shift()
+                if (buf.length == 0) {
+                    this._queue.delete(path);
+                } else {
+                    this._queue.set(path, buf)
+                }
                 break;
         }
-        if (buf.length == 0) {
-            this._queue.delete(path);
-        } else {
-            this._queue.set(path, buf)
-        }
+        // if (buf.length == 0) {
+        //     this._queue.delete(path);
+        // } else {
+        //     this._queue.set(path, buf)
+        // }
     }
 }
 
 const getQueue = new GetQueue();
 const putQueue = new PutQueue();
 
-function ProcessGet(req, res) {
+function ProcessGet(req, res, uniqId) {
     const url = new URL(req.url, `http://${hostname}/${req.url}`);
     const keyTimeout = url.searchParams.get("timeout");
     const path = url.pathname;
-    const uniqId = Date.now();
     getQueue.addRequestToQueue(path, uniqId);
+    console.log(getQueue)
     console.log(keyTimeout * 1000);
     let counter = 0;
     const interval = setInterval( function() {
@@ -86,12 +97,15 @@ function ProcessGet(req, res) {
                 res.setHeader('Content-Type', 'text/plain');
                 res.end(`${putQueue.getFirstFromQueue(path)}`);
                 getQueue.remRequestFromQueue(path, uniqId);
+                console.log(getQueue)
                 clearInterval(interval);
+                return
             }
         }
         counter++;
         if (counter >= keyTimeout * 10) {
             getQueue.remRequestFromQueue(path, uniqId, "timeout");
+            console.log(getQueue)
             res.statusCode = 404;
             res.end();
             clearInterval(interval);
@@ -123,7 +137,9 @@ function ProcessPut(req, res) {
 const server = http.createServer((req, res) => {
     switch (req.method) {
         case "GET": 
-            ProcessGet(req, res);
+            const getId = getCounter;
+            getCounter++;
+            ProcessGet(req, res, getId);
             break;
         case "PUT":
             ProcessPut(req, res);
