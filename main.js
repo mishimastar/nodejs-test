@@ -13,30 +13,31 @@ inputArgs.forEach((val, index) => {
 
 class PutQueue {
     constructor() {
-        this._queue = {};
+        this._queue = new Map();
     }
     pathInQueue(path) {
-        if (path in this._queue) {
-            return true
-        } else {
-            return false
-        }
+        return this._queue.has(path) 
     }
     addRequestToQueue(path, request) {
-        if (!(path in this._queue)) {
+        if (!(this._queue.has(path))) {
             // console.log(`no ${path} in queue`);
-            this._queue[path] = [request];
+            this._queue.set(path, [request]);
             // console.log(this._queue);
         } else {
-            this._queue[path].push(request);
+            let buf = this._queue.get(path)
+            buf.push(request)
+            this._queue.set(path, buf);
             // console.log(this._queue);
         }
     }
     getFirstFromQueue(path) {
-        const result = this._queue[path].shift();
+        let buf = this._queue.get(path);
+        const result = buf.shift();
         // console.log(`get ${result} from ${path} in queue`);
-        if (this._queue[path].length == 0) {
-            delete this._queue[path];
+        if (buf.length == 0) {
+            this._queue.delete(path);
+        } else {
+            this._queue.set(path, buf)
         }
         return result
     }
@@ -44,24 +45,23 @@ class PutQueue {
 
 class GetQueue extends PutQueue {
     getFirstFromQueue(path) {
-        return this._queue[path][0]
+        return this._queue.get(path)[0]
     }
     remRequestFromQueue(path, request, reason) {
+        let buf = this._queue.get(path);
         switch(reason) {
             case "timeout":
-                const rem = this._queue[path].indexOf(request);
-                this._queue[path].splice(rem, 1);
-                // console.log(`deleted ${request} from ${path} Queue`);
-                if (this._queue[path].length == 0) {
-                    delete this._queue[path];
-                }
+                const rem = buf.indexOf(request);
+                buf.splice(rem, 1);
                 break;
             default:
-                this._queue[path].shift()
-                if (this._queue[path].length == 0) {
-                    delete this._queue[path];
-                }
+                buf.shift()
                 break;
+        }
+        if (buf.length == 0) {
+            this._queue.delete(path);
+        } else {
+            this._queue.set(path, buf)
         }
     }
 }
