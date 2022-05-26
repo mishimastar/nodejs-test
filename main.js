@@ -54,26 +54,16 @@ class GetQueue extends PutQueue {
             case "timeout":
                 const rem = buf.indexOf(request);
                 buf.splice(rem, 1);
-                if (buf.length == 0) {
-                    this._queue.delete(path);
-                } else {
-                    this._queue.set(path, buf)
-                }
                 break;
             default:
                 buf.shift()
-                if (buf.length == 0) {
-                    this._queue.delete(path);
-                } else {
-                    this._queue.set(path, buf)
-                }
                 break;
         }
-        // if (buf.length == 0) {
-        //     this._queue.delete(path);
-        // } else {
-        //     this._queue.set(path, buf)
-        // }
+        if (buf.length == 0) {
+            this._queue.delete(path);
+        } else {
+            this._queue.set(path, buf)
+        }
     }
 }
 
@@ -89,7 +79,6 @@ function ProcessGet(req, res, uniqId) {
     console.log(keyTimeout * 1000);
     let counter = 0;
     const interval = setInterval( function() {
-        // console.log('Bar', counter);
         if (uniqId == getQueue.getFirstFromQueue(path)) {
             if (putQueue.pathInQueue(path)) {
                 // console.log(`found ${path} in putQueue`);
@@ -146,6 +135,7 @@ const server = http.createServer((req, res) => {
             break;
         default:
             res.statusCode = 400;
+            res.end();
             break;
     }
 });
