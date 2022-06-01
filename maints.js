@@ -1,4 +1,4 @@
-import * as http from 'http';
+const http = require('node:http');
 const hostname = '127.0.0.1';
 let port = 80;
 const inputArgs = process.argv;
