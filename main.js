@@ -78,7 +78,8 @@ function ProcessGet(req, res, uniqId) {
     console.log(getQueue)
     console.log(keyTimeout * 1000);
     let counter = 0;
-    const interval = setInterval( function() {
+    setTimeout(function wait() {
+        // console.log('Bar', counter);
         if (uniqId == getQueue.getFirstFromQueue(path)) {
             if (putQueue.pathInQueue(path)) {
                 // console.log(`found ${path} in putQueue`);
@@ -86,20 +87,46 @@ function ProcessGet(req, res, uniqId) {
                 res.setHeader('Content-Type', 'text/plain');
                 res.end(`${putQueue.getFirstFromQueue(path)}`);
                 getQueue.remRequestFromQueue(path, uniqId);
-                console.log(getQueue)
-                clearInterval(interval);
+                console.log(getQueue);
                 return
+                // clearInterval(interval);
             }
         }
         counter++;
+        // console.log(counter)
         if (counter >= keyTimeout * 10) {
             getQueue.remRequestFromQueue(path, uniqId, "timeout");
             console.log(getQueue)
             res.statusCode = 404;
             res.end();
-            clearInterval(interval);
+            console.log('timeout');
+        } else {
+            setTimeout(wait, 100)
         }
+        
     }, 100);
+    // const interval = setInterval( function() {
+    //     if (uniqId == getQueue.getFirstFromQueue(path)) {
+    //         if (putQueue.pathInQueue(path)) {
+    //             // console.log(`found ${path} in putQueue`);
+    //             res.statusCode = 200;
+    //             res.setHeader('Content-Type', 'text/plain');
+    //             res.end(`${putQueue.getFirstFromQueue(path)}`);
+    //             getQueue.remRequestFromQueue(path, uniqId);
+    //             console.log(getQueue)
+    //             clearInterval(interval);
+    //             return
+    //         }
+    //     }
+    //     counter++;
+    //     if (counter >= keyTimeout * 10) {
+    //         getQueue.remRequestFromQueue(path, uniqId, "timeout");
+    //         console.log(getQueue)
+    //         res.statusCode = 404;
+    //         res.end();
+    //         clearInterval(interval);
+    //     }
+    // }, 100);
 }
 
 function ProcessPut(req, res) {
