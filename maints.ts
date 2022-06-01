@@ -1,36 +1,37 @@
-const http = require('node:http');
+import * as http from 'http';
 
-const hostname = '127.0.0.1';
-let port = 80;
-const inputArgs = process.argv;
-let getCounter = 0;
+const hostname: string = '127.0.0.1';
+let port: number = 80;
+const inputArgs: string[] = process.argv;
+let getCounter: number = 0;
 
 inputArgs.forEach((val, index) => {
     if (val == "-p" && typeof(inputArgs[index+1]) != "undefined") {
-        port = inputArgs[index+1];
+        port = Number(inputArgs[index+1]);
     }
   });
 
 
 class PutQueue {
+    _queue: Map<string, string[]>;
     constructor() {
         this._queue = new Map();
     }
-    pathInQueue(path) {
+    pathInQueue(path: string): boolean {
         return this._queue.has(path) 
     }
-    addRequestToQueue(path, request) {
+    addRequestToQueue(path: string, request: string) {
         if (!(this._queue.has(path))) {
             this._queue.set(path, [request]);
         } else {
-            let buf = this._queue.get(path)
+            let buf: string[] = this._queue.get(path)
             buf.push(request)
             this._queue.set(path, buf);
         }
     }
-    getFirstFromQueue(path) {
-        let buf = this._queue.get(path);
-        const result = buf.shift();
+    getFirstFromQueue(path: string): string {
+        let buf: string[] = this._queue.get(path);
+        const result: string = buf.shift();
         if (buf.length == 0) {
             this._queue.delete(path);
         } else {
@@ -41,14 +42,14 @@ class PutQueue {
 }
 
 class GetQueue extends PutQueue {
-    getFirstFromQueue(path) {
+    getFirstFromQueue(path: string) {
         return this._queue.get(path)[0]
     }
-    remRequestFromQueue(path, request, reason) {
-        let buf = this._queue.get(path);
+    remRequestFromQueue(path: string, request: string, reason: string) {
+        let buf: string[] = this._queue.get(path);
         switch(reason) {
             case "timeout":
-                const rem = buf.indexOf(request);
+                const rem: number = buf.indexOf(request);
                 buf.splice(rem, 1);
                 break;
             default:
@@ -66,21 +67,21 @@ class GetQueue extends PutQueue {
 const getQueue = new GetQueue();
 const putQueue = new PutQueue();
 
-function ProcessGet(req, res, uniqId) {
-    const url = new URL(req.url, `http://${hostname}/${req.url}`);
-    const keyTimeout = url.searchParams.get("timeout");
-    const path = url.pathname;
+function ProcessGet(req: http.IncomingMessage, res: http.ServerResponse, uniqId: string) {
+    const url: URL = new URL(req.url, `http://${hostname}/${req.url}`);
+    const keyTimeout: number = Number(url.searchParams.get("timeout"));
+    const path: string = url.pathname;
     getQueue.addRequestToQueue(path, uniqId);
     console.log(getQueue)
     console.log(keyTimeout * 1000);
-    let counter = 0;
+    let counter: number = 0;
     setTimeout(function wait() {
         if (uniqId == getQueue.getFirstFromQueue(path)) {
             if (putQueue.pathInQueue(path)) {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/plain');
                 res.end(`${putQueue.getFirstFromQueue(path)}`);
-                getQueue.remRequestFromQueue(path, uniqId);
+                getQueue.remRequestFromQueue(path, uniqId, "found");
                 console.log(getQueue);
                 return
             }
@@ -99,10 +100,10 @@ function ProcessGet(req, res, uniqId) {
     }, 100);
 }
 
-function ProcessPut(req, res) {
-    const url = new URL(req.url, `http://${hostname}/${req.url}`);
-    const keyV = url.searchParams.get("v");
-    const path = url.pathname;
+function ProcessPut(req: http.IncomingMessage, res: http.ServerResponse) {
+    const url: URL = new URL(req.url, `http://${hostname}/${req.url}`);
+    const keyV: string = url.searchParams.get("v");
+    const path: string = url.pathname;
             if (keyV == null) {
                 res.statusCode = 400;
                 res.end();
@@ -120,10 +121,10 @@ function ProcessPut(req, res) {
             }
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
     switch (req.method) {
         case "GET": 
-            const getId = getCounter;
+            const getId: string = String(getCounter);
             getCounter++;
             ProcessGet(req, res, getId);
             break;
